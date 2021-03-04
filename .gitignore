@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/gameboyo
+gameboyo.so
+gameboyo.dylib
+gameboyo.dll
+gameboyo.a
+gameboyo.lib
+gameboyo-test-*
+*.exe
+*.o
+*.obj
+*.lst
