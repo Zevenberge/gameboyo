@@ -8,6 +8,8 @@ enum kB = 1024;
 /// Memory layout as seen on http://fms.komkon.org/GameBoy/Tech/Software.html
 struct MemoryMap
 {
+    @disable this(this);
+
     /// 0x0000 - 0x3FFF
     ubyte[16 * kB] romBank0; 
     /// 0x4000 - 0x7FFF
@@ -160,4 +162,94 @@ unittest
     assert(memoryMap.isGameBoyColor == Color.NotGameBoyColor, "Default for the normal GameBoy not recognised");
     (*memoryMap)[0x0143] = 0xDD;
     assert(memoryMap.isGameBoyColor == Color.NotGameBoyColor, "A random value is not seen as the normal GameBoy");
+}
+
+size_t romSize(MemoryMap* map) @safe pure nothrow @nogc
+{
+    const flag = (*map)[0x0148];
+    switch(flag)
+    {
+        case 0x00: return   2 * 16 * kB;
+        case 0x01: return   4 * 16 * kB;
+        case 0x02: return   8 * 16 * kB;
+        case 0x03: return  16 * 16 * kB;
+        case 0x04: return  32 * 16 * kB;
+        case 0x05: return  64 * 16 * kB;
+        case 0x06: return 128 * 16 * kB;
+        case 0x52: return  72 * 16 * kB;
+        case 0x53: return  80 * 16 * kB;
+        case 0x54: return  96 * 16 * kB;
+        default: assert(false, "Unknown ROM size.");
+    }
+}
+
+@("Are the ROM sizes recognised")
+@safe
+unittest
+{
+    auto map = new MemoryMap();
+    (*map)[0x0148] = 0x00;
+    assert(map.romSize() ==   2 * 16 * kB, "Initial ROM size not seen");
+
+    (*map)[0x0148] = 0x01;
+    assert(map.romSize() ==   4 * 16 * kB, "Tiny ROM size not seen");
+
+    (*map)[0x0148] = 0x02;
+    assert(map.romSize() ==   8 * 16 * kB, "Small ROM size not seen");
+
+    (*map)[0x0148] = 0x03;
+    assert(map.romSize() ==  16 * 16 * kB, "Medium ROM size not seen");
+
+    (*map)[0x0148] = 0x04;
+    assert(map.romSize() ==  32 * 16 * kB, "Large ROM size not seen");
+
+    (*map)[0x0148] = 0x05;
+    assert(map.romSize() ==  64 * 16 * kB, "Big ROM size not seen");
+
+    (*map)[0x0148] = 0x06;
+    assert(map.romSize() == 128 * 16 * kB, "Huge ROM size not seen");
+
+    (*map)[0x0148] = 0x52;
+    assert(map.romSize() ==  72 * 16 * kB, "Weird ROM size 1 not seen");
+
+    (*map)[0x0148] = 0x53;
+    assert(map.romSize() ==  80 * 16 * kB, "Weird ROM size 2 not seen");
+
+    (*map)[0x0148] = 0x54;
+    assert(map.romSize() ==  96 * 16 * kB, "Weird ROM size 3 not seen");
+}
+
+size_t ramSize(MemoryMap* map) @safe pure nothrow @nogc
+{
+    const flag = (*map)[0x0149];
+    switch(flag)
+    {
+        case 0x00: return   0 * kB;
+        case 0x01: return   2 * kB;
+        case 0x02: return   8 * kB;
+        case 0x03: return  32 * kB;
+        case 0x04: return 128 * kB;
+        default: assert(false, "Unknown RAM size.");
+    }
+}
+
+@("Can I get the size of the RAM")
+@safe
+unittest
+{
+    auto map = new MemoryMap();
+    (*map)[0x0149] = 0x00;
+    assert(map.ramSize() ==   0 * kB, "No RAM not seen");
+
+    (*map)[0x0149] = 0x01;
+    assert(map.ramSize() ==   2 * kB, "2 kB not seen");
+
+    (*map)[0x0149] = 0x02;
+    assert(map.ramSize() ==   8 * kB, "8 kB not seen");
+
+    (*map)[0x0149] = 0x03;
+    assert(map.ramSize() ==  32 * kB, "32 kB RAM not seen");
+
+    (*map)[0x0149] = 0x04;
+    assert(map.ramSize() == 128 * kB, "128 kB RAM not seen");
 }
