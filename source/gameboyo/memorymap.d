@@ -1,17 +1,77 @@
 module gameboyo.memorymap;
 
+import gameboyo.revisions;
+
 /// Kilobyte
 enum kB = 1024;
 
 /// Memory layout as seen on http://fms.komkon.org/GameBoy/Tech/Software.html
 struct MemoryMap
 {
-    ubyte[16 * kB] romBank0;
+    /// 0x0000 - 0x3FFF
+    ubyte[16 * kB] romBank0; 
+    /// 0x4000 - 0x7FFF
     ubyte[16 * kB] switchableRomBank;
+    /// 0x8000 - 0x9FFF
     ubyte[ 8 * kB] vRam;
+    /// 0xA000 - 0xBFFF
     ubyte[ 8 * kB] switchableRamBank;
-    ubyte[15 * kB + 768] internalRam;
+    /// 0xC000 - 0xDFFF
+    /// The addresses E000-FE00 appear to access the internal
+    /// RAM the same as C000-DE00. (i.e. If you write a byte to
+    /// address E000 it will appear at C000 and E000.
+    /// Similarly, writing a byte to C000 will appear at C000
+    /// and E000.)
+    ubyte[ 8 * kB] internalRam;
+    /// 0xE000 - 0xFDFF
+    /// The addresses E000-FE00 appear to access the internal
+    /// RAM the same as C000-DE00. (i.e. If you write a byte to
+    /// address E000 it will appear at C000 and E000.
+    /// Similarly, writing a byte to C000 will appear at C000
+    /// and E000.)
+    ubyte[ 8 * kB - 256] echoOfInternalRam;
+    /// 0xFE00 - 0xFFFF
     ubyte[ 256 ] ioAndInternalRam;
+
+    /// Request a byte in the memory by global index (0x0000 to 0xFFFF).
+    ubyte opIndex(size_t index) @trusted pure const nothrow @nogc
+    in(index <= MemoryMap.sizeof, "Requested index was out of bounds")
+    {
+        return (cast(ubyte*)&this)[index];
+    }
+
+    /// Ditto
+    void opIndexAssign(ubyte value, size_t index) @trusted pure nothrow @nogc
+    in(index <= MemoryMap.sizeof, "Requested index was out of bounds")
+    {
+        (cast(ubyte*)&this)[index] = value;
+        if(index >= 0xE000 && index < 0xFE00)
+        {
+            (cast(ubyte*)&this)[index - 0x2000] = value;
+        }
+        else if(index >= 0xC000 && index < 0xDE00)
+        {
+            (cast(ubyte*)&this)[index + 0x2000] = value;
+        }
+    }
+
+    /// Request a slice in the memory by global index (0x0000 to 0xFFFF).
+    ubyte[] opSlice(size_t from, size_t to) @trusted pure nothrow @nogc
+    in(from <= to, "Initial index of the slice is larger than the outer index")
+    in(to <= MemoryMap.sizeof, "Requested index was out of bounds")
+    {
+        return (cast(ubyte*)&this)[from .. to];
+    }
+
+    /// Copies the given array into the desired area. The range needs to be explicitly specified as a sanity check.
+    /// Both indices are inclusive.
+    void opSliceAssign(size_t length)(ubyte[length] value, size_t from, size_t to) @trusted pure nothrow @nogc
+    in(to <= MemoryMap.sizeof, "Requested upper index was out of bounds")
+    in(from + value.length == to + 1, "Given bounds are not correct")
+    {
+        // TODO: Mirror assignment?
+        (cast(ubyte*)&this)[from .. to + 1] = value;
+    }
 }
 
 @("Are the memory adresses mapped correctly")
@@ -19,7 +79,6 @@ struct MemoryMap
 unittest
 {
     import std.conv : to;
-    import std.stdio : writeln;
 
     static assert(MemoryMap.sizeof == (0xFFFF + 1), 
         "The memory map doesn't have the correct size, was" 
@@ -36,6 +95,69 @@ unittest
     assert(switchableRamBank - baseAdress == 0xA000, "Switchable RAM bank not mapped correctly");
     const internalRam = cast(void*)map.internalRam;
     assert(internalRam - baseAdress == 0xC000, "Internal RAM not mapped correctly");
+    const echoOfInternalRam = cast(void*)map.echoOfInternalRam;
+    assert(echoOfInternalRam - baseAdress == 0xE000, "Echo of internal RAM not mapped correctly");
     const ioAndInternalRam = cast(void*)map.ioAndInternalRam;
     assert(ioAndInternalRam - baseAdress == 0xFF00, "IO and internal RAM not mapped correctly");
+}
+
+@("Is the internal RAM echoed correctly")
+@safe
+unittest
+{
+    auto map = new MemoryMap();
+    (*map)[0xE000] = 0xCD;
+    assert((*map)[0xC000] == 0xCD, "Value not correctly echoed in the first part");
+    (*map)[0xC000] = 0xAB;
+    assert((*map)[0xE000] == 0xAB, "Value not correctly echoed in the latter part");
+    (*map)[0xDE00] = 0xEF;
+    assert((*map)[0xFE00] != 0xEF, "Valued echoed into a different part of the RAM");
+    (*map)[0xFE00] = 0xFA;
+    assert((*map)[0xDE00] != 0xFA, "Valued echoed from a different part of the RAM");
+}
+
+enum scrollingNintendoGraphic = [
+    0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B, 0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D,
+    0x00, 0x08, 0x11, 0x1F, 0x88, 0x89, 0x00, 0x0E, 0xDC, 0xCC, 0x6E, 0xE6, 0xDD, 0xDD, 0xD9, 0x99,
+    0xBB, 0xBB, 0x67, 0x63, 0x6E, 0x0E, 0xEC, 0xCC, 0xDD, 0xDC, 0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E
+];
+
+string title(MemoryMap* map) @safe pure
+{
+    import gameboyo.ascii : fromPaddedBytes;
+    return (*map)[0x0134 .. 0x0142].fromPaddedBytes();
+}
+
+@("Can I get the title of the game")
+@safe
+unittest
+{
+    import gameboyo.ascii : toPaddedBytes;
+
+    auto memoryMap = new MemoryMap();
+    (*memoryMap)[0x0134 .. 0x0142] = "POKEMON".toPaddedBytes!(15);
+    auto title = memoryMap.title();
+    assert(title == "POKEMON", "Could not get the title");
+}
+
+private enum GameBoyColorFlagMemoryAdress = 0x0143;
+private enum GameBoyColorFlagValue = 0x80;
+
+Color isGameBoyColor(MemoryMap* map) @safe pure nothrow @nogc
+{
+    return (*map)[GameBoyColorFlagMemoryAdress] == GameBoyColorFlagValue
+        ? Color.GameBoyColor : Color.NotGameBoyColor;
+}
+
+@("Is GameBoyColor flag recognised")
+@safe
+unittest
+{
+    auto memoryMap = new MemoryMap();
+    (*memoryMap)[0x0143] = 0x80;
+    assert(memoryMap.isGameBoyColor == Color.GameBoyColor, "GameBoyColor flag not recognised");
+    (*memoryMap)[0x0143] = 0x00;
+    assert(memoryMap.isGameBoyColor == Color.NotGameBoyColor, "Default for the normal GameBoy not recognised");
+    (*memoryMap)[0x0143] = 0xDD;
+    assert(memoryMap.isGameBoyColor == Color.NotGameBoyColor, "A random value is not seen as the normal GameBoy");
 }
