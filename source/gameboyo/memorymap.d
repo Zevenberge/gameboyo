@@ -74,6 +74,13 @@ struct MemoryMap
         // TODO: Mirror assignment?
         (cast(ubyte*)&this)[from .. to + 1] = value;
     }
+
+    /// Gets the 16-bit value spanning two bytes starting at the
+    /// requested index. Least-significant byte is first.
+    ushort shortAt(size_t index) @safe pure const nothrow @nogc
+    {
+        return cast(ushort)this[index + 1] << 8  | this[index];
+    }
 }
 
 @("Are the memory adresses mapped correctly")
@@ -118,12 +125,22 @@ unittest
     assert((*map)[0xDE00] != 0xFA, "Valued echoed from a different part of the RAM");
 }
 
-enum scrollingNintendoGraphic = [
+@("Can I request a 16-bit value")
+@safe unittest
+{
+    auto map = new MemoryMap();
+    (*map)[0xE000] = 0xCD;
+    (*map)[0xE001] = 0xAB;
+    assert(map.shortAt(0xE000) == 0xABCD, "The least-significant byte is first");
+}
+
+static immutable scrollingNintendoGraphic = [
     0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B, 0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D,
     0x00, 0x08, 0x11, 0x1F, 0x88, 0x89, 0x00, 0x0E, 0xDC, 0xCC, 0x6E, 0xE6, 0xDD, 0xDD, 0xD9, 0x99,
     0xBB, 0xBB, 0x67, 0x63, 0x6E, 0x0E, 0xEC, 0xCC, 0xDD, 0xDC, 0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E
 ];
 
+/// Gets the title of the ROM
 string title(MemoryMap* map) @safe pure
 {
     import gameboyo.ascii : fromPaddedBytes;

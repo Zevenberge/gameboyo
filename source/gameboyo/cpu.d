@@ -80,6 +80,15 @@ struct Cpu
                 return 8;
             }
 
+            // Load a value given by immediate pointer (nn) to A.
+        case 0xFA:
+            {
+                immutable pointer = memory.shortAt(registers.programCounter + 1);
+                registers.eightBit.a = memory[pointer];
+            }
+                registers.programCounter += 3;
+                return 16;
+
             // Write register values into the memory pointed to by (HL).
             static foreach(pointerWrite; [
                     tuple("b", 0x70), tuple("c", 0x71), tuple("d", 0x72),
@@ -625,6 +634,21 @@ struct Cpu
     assert(cpu.registers.eightBit.a == 0xFF, "The value of the register A should be changed");
     assert(cpu.registers.programCounter == 0x0102,
             "The program counter should have advanced one step");
+}
+
+@("Can I load a value given by an immediate pointer into A")
+@safe unittest
+{
+    Cpu* cpu = new Cpu();
+    cpu.memory[0x0100] = 0xFA;
+    cpu.memory[0x0101] = 0xCD;
+    cpu.memory[0x0102] = 0xAB;
+    cpu.memory[0xABCD] = 0xDD;
+    const ticksABC = cpu.executeInstruction();
+    assert(ticksABC == 16, "An immediate pointer to register operation takes 8 ticks");
+    assert(cpu.registers.eightBit.a == 0xDD, "The value of the register A should be changed");
+    assert(cpu.registers.programCounter == 0x0103,
+            "The program counter should have advanced three steps");
 }
 
 @("Can I put a register value into a memory location")
