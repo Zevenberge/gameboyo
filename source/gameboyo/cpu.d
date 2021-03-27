@@ -4,7 +4,7 @@ import gameboyo.memorymap;
 
 private struct EightBitRegisters
 {
-    ubyte f;
+    FlagRegister f;
     ubyte a;
 
     ubyte c;
@@ -120,7 +120,7 @@ struct Registers
 {
     auto registers = Registers();
     registers.eightBit.a = 0x01;
-    registers.eightBit.f = 0x10;
+    registers.eightBit.f.carry = true;
     assert(registers.sixteenBit.af == 0x0110, "A should be paired with F");
 
     registers.eightBit.b = 0x11;
