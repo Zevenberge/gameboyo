@@ -23,7 +23,8 @@ struct Cpu
             // Load 8-bit immediate values.
             static foreach (immediateLoad; [
                     tuple("b", 0x06), tuple("c", 0x0E), tuple("d", 0x16),
-                    tuple("e", 0x1E), tuple("h", 0x26), tuple("l", 0x2E)
+                    tuple("e", 0x1E), tuple("h", 0x26), tuple("l", 0x2E),
+                    tuple("a", 0x3E)
                 ])
             {
         case immediateLoad[1]:
@@ -164,6 +165,14 @@ struct Cpu
     assert(cpu.registers.eightBit.l == 0xDD, "The value should be placed in register L");
     assert(cpu.registers.programCounter == 0x010C,
             "The program counter should have advanced to 0x10C");
+
+    cpu.memory[0x010C] = 0x3E;
+    cpu.memory[0x010D] = 0x99;
+    const ticksIntoRegisterA = cpu.executeInstruction();
+    assert(ticksIntoRegisterA == 8, "Duration of the 0x3E instruction was not right");
+    assert(cpu.registers.eightBit.a == 0x99, "The value should be placed in register A");
+    assert(cpu.registers.programCounter == 0x010E,
+            "The program counter should have advanced to 0x10E");
 }
 
 @("Can I load an 8-bit value from a different register into A")
