@@ -106,6 +106,12 @@ struct Cpu
             registers.programCounter++;
             return 8;
 
+            // Load IO/internal RAM to A given by an immediate value
+        case 0xF0:
+            registers.eightBit.a = memory[0xFF00 + memory[registers.programCounter + 1]];
+            registers.programCounter += 2;
+            return 12;
+
             // Load a value given by immediate pointer (nn) to A.
         case 0xFA:
             {
@@ -165,6 +171,12 @@ struct Cpu
             memory[0xFF00 + registers.eightBit.c] = registers.eightBit.a;
             registers.programCounter++;
             return 8;
+
+            // Write register A to the IO memory pointed to by an immediate value
+        case 0xE0:
+            memory[0xFF00 + memory[registers.programCounter + 1]] = registers.eightBit.a;
+            registers.programCounter += 2;
+            return 12;
 
         default:
             assert(false, "Unknown opcode");
@@ -892,11 +904,20 @@ struct Cpu
     cpu.memory[0x0100] = 0xF2;
     cpu.registers.eightBit.c = 0xBE;
     cpu.memory[0xFFBE] = 0xAB;
-    const ticks = cpu.executeInstruction();
-    assert(ticks == 8, "A quirky pointer look-up takes 8 cycles");
+    const ticksAC = cpu.executeInstruction();
+    assert(ticksAC == 8, "A quirky pointer look-up takes 8 cycles");
     assert(cpu.registers.eightBit.a == 0xAB, "The value of the register A should be changed");
     assert(cpu.registers.programCounter == 0x0101,
             "The program counter should have advanced one step");
+
+    cpu.memory[0x0101] = 0xF0;
+    cpu.memory[0x0102] = 0xAB;
+    cpu.memory[0xFFAB] = 0xCD;
+    const ticksAN = cpu.executeInstruction();
+    assert(ticksAN == 12, "Putting an immediate IO pointer to register A takes 12 cycles");
+    assert(cpu.registers.eightBit.a == 0xCD, "The value of the register A should be changed");
+    assert(cpu.registers.programCounter == 0x0103,
+            "The program counter should have advanced two steps");
 }
 
 @("Can I write A to IO and Internal RAM")
@@ -906,11 +927,20 @@ struct Cpu
     cpu.memory[0x0100] = 0xE2;
     cpu.registers.eightBit.c = 0xBE;
     cpu.registers.eightBit.a = 0xAB;
-    const ticks = cpu.executeInstruction();
-    assert(ticks == 8, "A quirky pointer look-up takes 8 cycles");
+    const ticksCA = cpu.executeInstruction();
+    assert(ticksCA == 8, "A quirky pointer look-up takes 8 cycles");
     assert(cpu.memory[0xFFBE] == 0xAB, "The value of the memory location should be changed");
     assert(cpu.registers.programCounter == 0x0101,
             "The program counter should have advanced one step");
+
+    cpu.memory[0x0101] = 0xE0;
+    cpu.memory[0x0102] = 0xAA;
+    cpu.registers.eightBit.a = 0xCD;
+    const ticksNA = cpu.executeInstruction();
+    assert(ticksNA == 12, "An immediate IO pointer look-up takes 12 cycles");
+    assert(cpu.memory[0xFFAA] == 0xCD, "The value of the memory location should be changed");
+    assert(cpu.registers.programCounter == 0x0103,
+            "The program counter should have advanced two steps");
 }
 
 @("Can I load a pointed value into A and decrement the pointer")
