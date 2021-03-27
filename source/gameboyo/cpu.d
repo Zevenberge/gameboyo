@@ -186,7 +186,10 @@ struct Cpu
                     tuple("a", "a", 0x7F), tuple("a", "b", 0x78),
                     tuple("a", "c", 0x79), tuple("a", "d", 0x7A),
                     tuple("a", "e", 0x7B), tuple("a", "h", 0x7C),
-                    tuple("a", "l", 0x7D)
+                    tuple("a", "l", 0x7D), tuple("b", "b", 0x40),
+                    tuple("b", "c", 0x41), tuple("b", "d", 0x42),
+                    tuple("b", "e", 0x43), tuple("b", "h", 0x44),
+                    tuple("b", "l", 0x45)
                 ])
             {
         case registerLoad[2]:
@@ -264,7 +267,7 @@ struct Cpu
             "The program counter should have advanced to 0x10C");
 }
 
-@("Can I load an 8-bit value from a different register")
+@("Can I load an 8-bit value from a different register into A")
 @safe unittest
 {
     Cpu* cpu = new Cpu();
@@ -322,6 +325,59 @@ struct Cpu
     assert(ticksAL == 4, "A register to register operation takes 4 ticks");
     assert(cpu.registers.eightBit.a == 0x96, "The value of the register A should be changed");
     assert(cpu.registers.programCounter == 0x0107,
+            "The program counter should have advanced one step");
+}
+
+@("Can I load an 8-bit value from a different register into B")
+@safe unittest
+{
+    Cpu* cpu = new Cpu();
+    cpu.memory[0x0100] = 0x40;
+    cpu.registers.eightBit.b = 0xAB;
+    const ticksBB = cpu.executeInstruction();
+    assert(ticksBB == 4, "A register to register operation takes 4 ticks");
+    assert(cpu.registers.eightBit.b == 0xAB, "The value of the register B should be unchanged");
+    assert(cpu.registers.programCounter == 0x0101,
+            "The program counter should have advanced one step");
+
+    cpu.memory[0x0101] = 0x41;
+    cpu.registers.eightBit.c = 0xBA;
+    const ticksBC = cpu.executeInstruction();
+    assert(ticksBC == 4, "A register to register operation takes 4 ticks");
+    assert(cpu.registers.eightBit.b == 0xBA, "The value of the register B should be changed");
+    assert(cpu.registers.programCounter == 0x0102,
+            "The program counter should have advanced one step");
+
+    cpu.memory[0x0102] = 0x42;
+    cpu.registers.eightBit.d = 0xCA;
+    const ticksBD = cpu.executeInstruction();
+    assert(ticksBD == 4, "A register to register operation takes 4 ticks");
+    assert(cpu.registers.eightBit.b == 0xCA, "The value of the register B should be changed");
+    assert(cpu.registers.programCounter == 0x0103,
+            "The program counter should have advanced one step");
+
+    cpu.memory[0x0103] = 0x43;
+    cpu.registers.eightBit.e = 0xDE;
+    const ticksBE = cpu.executeInstruction();
+    assert(ticksBE == 4, "A register to register operation takes 4 ticks");
+    assert(cpu.registers.eightBit.b == 0xDE, "The value of the register B should be changed");
+    assert(cpu.registers.programCounter == 0x0104,
+            "The program counter should have advanced one step");
+
+    cpu.memory[0x0104] = 0x44;
+    cpu.registers.eightBit.h = 0xEF;
+    const ticksBH = cpu.executeInstruction();
+    assert(ticksBH == 4, "A register to register operation takes 4 ticks");
+    assert(cpu.registers.eightBit.b == 0xEF, "The value of the register B should be changed");
+    assert(cpu.registers.programCounter == 0x0105,
+            "The program counter should have advanced one step");
+
+    cpu.memory[0x0105] = 0x45;
+    cpu.registers.eightBit.l = 0xFA;
+    const ticksBL = cpu.executeInstruction();
+    assert(ticksBL == 4, "A register to register operation takes 4 ticks");
+    assert(cpu.registers.eightBit.b == 0xFA, "The value of the register B should be changed");
+    assert(cpu.registers.programCounter == 0x0106,
             "The program counter should have advanced one step");
 }
 
