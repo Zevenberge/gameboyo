@@ -86,6 +86,12 @@ struct Cpu
                 return 8;
             }
 
+            // Load IO/internal RAM to A given by register C
+        case 0xF2:
+            registers.eightBit.a = memory[0xFF00 + registers.eightBit.c];
+            registers.programCounter++;
+            return 8;
+
             // Load a value given by immediate pointer (nn) to A.
         case 0xFA:
             {
@@ -125,6 +131,12 @@ struct Cpu
             }
             registers.programCounter += 3;
             return 16;
+
+            // Write register A to the IO memory pointed to by (C).
+        case 0xE2:
+            memory[0xFF00 + registers.eightBit.c] = registers.eightBit.a;
+            registers.programCounter++;
+            return 8;
 
         default:
             assert(false, "Unknown opcode");
@@ -843,4 +855,32 @@ struct Cpu
     assert(cpu.memory[0xABCD] == 0xDD, "The value of the pointed to memory should be changed");
     assert(cpu.registers.programCounter == 0x0102,
             "The program counter should have advanced two steps");
+}
+
+@("Can I load IO and internal RAM into register A")
+@safe unittest
+{
+    Cpu* cpu = new Cpu();
+    cpu.memory[0x0100] = 0xF2;
+    cpu.registers.eightBit.c = 0xBE;
+    cpu.memory[0xFFBE] = 0xAB;
+    const ticks = cpu.executeInstruction();
+    assert(ticks == 8, "A quirky pointer look-up takes 8 cycles");
+    assert(cpu.registers.eightBit.a == 0xAB, "The value of the register A should be changed");
+    assert(cpu.registers.programCounter == 0x0101,
+            "The program counter should have advanced one step");
+}
+
+@("Can I write A to IO and Internal RAM")
+@safe unittest
+{
+    Cpu* cpu = new Cpu();
+    cpu.memory[0x0100] = 0xE2;
+    cpu.registers.eightBit.c = 0xBE;
+    cpu.registers.eightBit.a = 0xAB;
+    const ticks = cpu.executeInstruction();
+    assert(ticks == 8, "A quirky pointer look-up takes 8 cycles");
+    assert(cpu.memory[0xFFBE] == 0xAB, "The value of the memory location should be changed");
+    assert(cpu.registers.programCounter == 0x0101,
+            "The program counter should have advanced one step");
 }
