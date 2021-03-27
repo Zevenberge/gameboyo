@@ -86,6 +86,13 @@ struct Cpu
                 return 8;
             }
 
+            // Load pointer (HL) into A and decrement HL.
+        case 0x3A:
+            registers.eightBit.a = memory[registers.sixteenBit.hl];
+            registers.sixteenBit.hl--;
+            registers.programCounter++;
+            return 8;
+
             // Load IO/internal RAM to A given by register C
         case 0xF2:
             registers.eightBit.a = memory[0xFF00 + registers.eightBit.c];
@@ -116,6 +123,13 @@ struct Cpu
                 registers.programCounter++;
                 return 8;
             }
+
+            // Write A into the memory pointed to by (HL) and decrement HL.
+        case 0x32:
+            memory[registers.sixteenBit.hl] = registers.eightBit.a;
+            registers.sixteenBit.hl--;
+            registers.programCounter++;
+            return 8;
 
             // Write an immediade value n into the memory pointed to by (HL).
         case 0x36:
@@ -881,6 +895,36 @@ struct Cpu
     const ticks = cpu.executeInstruction();
     assert(ticks == 8, "A quirky pointer look-up takes 8 cycles");
     assert(cpu.memory[0xFFBE] == 0xAB, "The value of the memory location should be changed");
+    assert(cpu.registers.programCounter == 0x0101,
+            "The program counter should have advanced one step");
+}
+
+@("Can I load a pointed value into A and decrement the pointer")
+@safe unittest
+{
+    Cpu* cpu = new Cpu();
+    cpu.memory[0x0100] = 0x3A;
+    cpu.registers.sixteenBit.hl = 0xFFBE;
+    cpu.memory[0xFFBE] = 0xAB;
+    const ticks = cpu.executeInstruction();
+    assert(ticks == 8, "The operation takes 8 cycles");
+    assert(cpu.registers.eightBit.a == 0xAB, "The value of register A should be changed");
+    assert(cpu.registers.sixteenBit.hl == 0xFFBD, "The HL pointer should have been decremented");
+    assert(cpu.registers.programCounter == 0x0101,
+            "The program counter should have advanced one step");
+}
+
+@("Can I put A into a pointed location and decrement the pointer")
+@safe unittest
+{
+    Cpu* cpu = new Cpu();
+    cpu.memory[0x0100] = 0x32;
+    cpu.registers.sixteenBit.hl = 0xFFBE;
+    cpu.registers.eightBit.a = 0xAB;
+    const ticks = cpu.executeInstruction();
+    assert(ticks == 8, "The operation takes 8 cycles");
+    assert(cpu.memory[0xFFBE] == 0xAB, "The value of the pointed to location should be changed");
+    assert(cpu.registers.sixteenBit.hl == 0xFFBD, "The HL pointer should have been decremented");
     assert(cpu.registers.programCounter == 0x0101,
             "The program counter should have advanced one step");
 }
