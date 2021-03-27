@@ -181,7 +181,7 @@ struct Cpu
                 return 8;
             }
 
-            // Load values from different registers.
+            // Load values from different registers into other registers.
             static foreach (registerLoad; [
                     tuple("a", "a", 0x7F), tuple("a", "b", 0x78),
                     tuple("a", "c", 0x79), tuple("a", "d", 0x7A),
@@ -214,7 +214,7 @@ struct Cpu
                 return 4;
             }
 
-            // Load values from pointers.
+            // Load values from pointers (HL).
             static foreach (pointerLoad; [
                     tuple("a", 0x7E), tuple("b", 0x46), tuple("c", 0x4E),
                     tuple("d", 0x56), tuple("e", 0x5E), tuple("h", 0x66),
@@ -227,7 +227,7 @@ struct Cpu
                 return 8;
             }
 
-            // Write register values into the memory pointed to.
+            // Write register values into the memory pointed to by (HL).
             static foreach(pointerWrite; [
                     tuple("b", 0x70), tuple("c", 0x71), tuple("d", 0x72),
                     tuple("e", 0x73), tuple("h", 0x74), tuple("l", 0x75)
@@ -238,6 +238,12 @@ struct Cpu
                 registers.programCounter++;
                 return 8;
             }
+
+            // Write an immediade value n into the memory pointed to by (HL).
+        case 0x36:
+                memory[registers.sixteenBit.hl] = memory[registers.programCounter + 1];
+                registers.programCounter += 2;
+                return 12;
 
         default:
             assert(false, "Unknown opcode");
@@ -800,4 +806,18 @@ struct Cpu
     assert(cpu.memory[0xABBA] == 0xBA, "The value of the pointed to memory should be changed");
     assert(cpu.registers.programCounter == 0x0106,
             "The program counter should have advanced one step");
+}
+
+@("Can I put an immediate value into a memory location")
+@safe unittest
+{
+    Cpu* cpu = new Cpu();
+    cpu.memory[0x0100] = 0x36;
+    cpu.memory[0x0101] = 0xDD;
+    cpu.registers.sixteenBit.hl = 0xABCD;
+    const ticks = cpu.executeInstruction();
+    assert(ticks == 12, "An immediate value to pointer operation takes 12 ticks");
+    assert(cpu.memory[0xABCD] == 0xDD, "The value of the pointed to memory should be changed");
+    assert(cpu.registers.programCounter == 0x0102,
+            "The program counter should have advanced two steps");
 }
