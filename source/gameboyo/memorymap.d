@@ -58,7 +58,7 @@ struct MemoryMap
     }
 
     /// Request a slice in the memory by global index (0x0000 to 0xFFFF).
-    ubyte[] opSlice(size_t from, size_t to) @trusted pure nothrow @nogc
+    ubyte[] opSlice(size_t from, size_t to) @trusted pure nothrow @nogc return
     in(from <= to, "Initial index of the slice is larger than the outer index")
     in(to <= MemoryMap.sizeof, "Requested index was out of bounds")
     {
