@@ -117,6 +117,15 @@ struct Cpu
             registers.programCounter += 2;
             return 12;
 
+            // Write register A into the memory pointed to by an immediate value.
+        case 0xEA:
+            {
+                immutable pointer = memory.shortAt(registers.programCounter + 1);
+                memory[pointer] = registers.eightBit.a;
+            }
+            registers.programCounter += 3;
+            return 16;
+
         default:
             assert(false, "Unknown opcode");
         }
@@ -805,6 +814,21 @@ struct Cpu
     assert(cpu.registers.programCounter == 0x0103,
             "The program counter should have advanced one step");
 
+}
+
+@("Can I put register A into a memory location given by an immediate pointer")
+@safe unittest
+{
+    Cpu* cpu = new Cpu();
+    cpu.memory[0x0100] = 0xEA;
+    cpu.memory[0x0101] = 0xCD;
+    cpu.memory[0x0102] = 0xAB;
+    cpu.registers.eightBit.a = 0xDD;
+    const ticks = cpu.executeInstruction();
+    assert(ticks == 16, "A register to immediate pointer operation takes 16 ticks");
+    assert(cpu.memory[0xABCD] == 0xDD, "The value of the pointed to memory should be changed");
+    assert(cpu.registers.programCounter == 0x0103,
+            "The program counter should have advanced three steps");
 }
 
 @("Can I put an immediate value into a memory location")
