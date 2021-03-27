@@ -47,7 +47,7 @@ private struct FlagRegister
 
     /// Half Carry Flag (H):
     /// This bit is set if a carry occurred from the lower
-    // nibble in the last math operation.
+    /// nibble in the last math operation.
     alias halfCarry = halfCarryFlagH;
 
     /// Carry Flag (C):
@@ -169,34 +169,50 @@ struct Cpu
             import std.typecons : tuple;
 
             // Load 8-bit immediate values.
-            static foreach (immediateLoad; [tuple("b", 0x06), tuple("c", 0x0E), 
-                tuple("d", 0x16), tuple("e", 0x1E), tuple("h", 0x26), tuple("l", 0x2E)])
+            static foreach (immediateLoad; [
+                    tuple("b", 0x06), tuple("c", 0x0E), tuple("d", 0x16),
+                    tuple("e", 0x1E), tuple("h", 0x26), tuple("l", 0x2E)
+                ])
             {
-            case immediateLoad[1]:
-                __traits(getMember, registers.eightBit, immediateLoad[0]) = memory[registers.programCounter + 1];
+        case immediateLoad[1]:
+                __traits(getMember, registers.eightBit, immediateLoad[0]) = memory[registers.programCounter
+                    + 1];
                 registers.programCounter += 2;
                 return 8;
             }
 
             // Load values from different registers.
-            static foreach (registerLoad; [tuple("a", "a", 0x7F), tuple("a", "b", 0x78), tuple("a", "c", 0x79)])
+            static foreach (registerLoad; [
+                    tuple("a", "a", 0x7F), tuple("a", "b", 0x78),
+                    tuple("a", "c", 0x79), tuple("a", "d", 0x7A),
+                    tuple("a", "e", 0x7B), tuple("a", "h", 0x7C),
+                    tuple("a", "l", 0x7D)
+                ])
             {
-            case registerLoad[2]:
-                __traits(getMember, registers.eightBit, registerLoad[0]) = 
-                    __traits(getMember, registers.eightBit, registerLoad[1]);
+        case registerLoad[2]:
+                __traits(getMember, registers.eightBit, registerLoad[0]) = __traits(getMember,
+                        registers.eightBit, registerLoad[1]);
                 registers.programCounter++;
                 return 4;
             }
 
-            default:
-                assert(false, "Unknown opcode");
+            // Load values from pointers.
+            static foreach (pointerLoad; [tuple("a", 0x7E)])
+            {
+        case pointerLoad[1]:
+                __traits(getMember, registers.eightBit, pointerLoad[0]) = memory[registers.sixteenBit.hl];
+                registers.programCounter++;
+                return 8;
+            }
+
+        default:
+            assert(false, "Unknown opcode");
         }
     }
 }
 
 @("Can I load immediate 8-bit values into the registers")
-@safe
-unittest
+@safe unittest
 {
     Cpu* cpu = new Cpu();
     cpu.memory[0x0100] = 0x06;
@@ -249,8 +265,7 @@ unittest
 }
 
 @("Can I load an 8-bit value from a different register")
-@safe
-unittest
+@safe unittest
 {
     Cpu* cpu = new Cpu();
     cpu.memory[0x0100] = 0x7F;
@@ -258,7 +273,7 @@ unittest
     const ticksAA = cpu.executeInstruction();
     assert(ticksAA == 4, "A register to register operation takes 4 ticks");
     assert(cpu.registers.eightBit.a == 0xAB, "The value of the register A should be unchanged");
-    assert(cpu.registers.programCounter == 0x0101, 
+    assert(cpu.registers.programCounter == 0x0101,
             "The program counter should have advanced one step");
 
     cpu.memory[0x0101] = 0x78;
@@ -266,7 +281,7 @@ unittest
     const ticksAB = cpu.executeInstruction();
     assert(ticksAB == 4, "A register to register operation takes 4 ticks");
     assert(cpu.registers.eightBit.a == 0xBA, "The value of the register A should be changed");
-    assert(cpu.registers.programCounter == 0x0102, 
+    assert(cpu.registers.programCounter == 0x0102,
             "The program counter should have advanced one step");
 
     cpu.memory[0x0102] = 0x79;
@@ -274,6 +289,52 @@ unittest
     const ticksAC = cpu.executeInstruction();
     assert(ticksAC == 4, "A register to register operation takes 4 ticks");
     assert(cpu.registers.eightBit.a == 0xCA, "The value of the register A should be changed");
-    assert(cpu.registers.programCounter == 0x0103, 
+    assert(cpu.registers.programCounter == 0x0103,
+            "The program counter should have advanced one step");
+
+    cpu.memory[0x0103] = 0x7A;
+    cpu.registers.eightBit.d = 0xDE;
+    const ticksAD = cpu.executeInstruction();
+    assert(ticksAD == 4, "A register to register operation takes 4 ticks");
+    assert(cpu.registers.eightBit.a == 0xDE, "The value of the register A should be changed");
+    assert(cpu.registers.programCounter == 0x0104,
+            "The program counter should have advanced one step");
+
+    cpu.memory[0x0104] = 0x7B;
+    cpu.registers.eightBit.e = 0xEF;
+    const ticksAE = cpu.executeInstruction();
+    assert(ticksAE == 4, "A register to register operation takes 4 ticks");
+    assert(cpu.registers.eightBit.a == 0xEF, "The value of the register A should be changed");
+    assert(cpu.registers.programCounter == 0x0105,
+            "The program counter should have advanced one step");
+
+    cpu.memory[0x0105] = 0x7C;
+    cpu.registers.eightBit.h = 0xFA;
+    const ticksAH = cpu.executeInstruction();
+    assert(ticksAH == 4, "A register to register operation takes 4 ticks");
+    assert(cpu.registers.eightBit.a == 0xFA, "The value of the register A should be changed");
+    assert(cpu.registers.programCounter == 0x0106,
+            "The program counter should have advanced one step");
+
+    cpu.memory[0x0106] = 0x7D;
+    cpu.registers.eightBit.l = 0x96;
+    const ticksAL = cpu.executeInstruction();
+    assert(ticksAL == 4, "A register to register operation takes 4 ticks");
+    assert(cpu.registers.eightBit.a == 0x96, "The value of the register A should be changed");
+    assert(cpu.registers.programCounter == 0x0107,
+            "The program counter should have advanced one step");
+}
+
+@("Can I load an 8-bit value from a pointer")
+@safe unittest
+{
+    Cpu* cpu = new Cpu();
+    cpu.memory[0x0100] = 0x7E;
+    cpu.memory[0xABCD] = 0xDD;
+    cpu.registers.sixteenBit.hl = 0xABCD;
+    const ticksAHL = cpu.executeInstruction();
+    assert(ticksAHL == 8, "A pointer to register operation takes 8 ticks");
+    assert(cpu.registers.eightBit.a == 0xDD, "The value of the register A should be unchanged");
+    assert(cpu.registers.programCounter == 0x0101,
             "The program counter should have advanced one step");
 }
