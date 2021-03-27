@@ -214,7 +214,7 @@ struct Cpu
             // Load values from pointers.
             static foreach (pointerLoad; [
                     tuple("a", 0x7E), tuple("b", 0x46), tuple("c", 0x4E),
-                    tuple("d", 0x56), tuple("e", 0x5E)
+                    tuple("d", 0x56), tuple("e", 0x5E), tuple("h", 0x66)
                 ])
             {
         case pointerLoad[1]:
@@ -655,5 +655,14 @@ struct Cpu
     assert(ticksEHL == 8, "A pointer to register operation takes 8 ticks");
     assert(cpu.registers.eightBit.e == 0x11, "The value of the register E should be changed");
     assert(cpu.registers.programCounter == 0x0105,
+            "The program counter should have advanced one step");
+
+    cpu.memory[0x0105] = 0x66;
+    cpu.memory[0xBABE] = 0x07;
+    cpu.registers.sixteenBit.hl = 0xBABE;
+    const ticksHHL = cpu.executeInstruction();
+    assert(ticksHHL == 8, "A pointer to register operation takes 8 ticks");
+    assert(cpu.registers.eightBit.h == 0x07, "The value of the register H should be changed");
+    assert(cpu.registers.programCounter == 0x0106,
             "The program counter should have advanced one step");
 }
