@@ -57,7 +57,10 @@ struct Cpu
                     tuple("h", "l", 0x65), tuple("l", "b", 0x68),
                     tuple("l", "c", 0x69), tuple("l", "d", 0x6A),
                     tuple("l", "e", 0x6B), tuple("l", "h", 0x6C),
-                    tuple("l", "l", 0x6D)
+                    tuple("l", "l", 0x6D), tuple("b", "a", 0x47),
+                    tuple("c", "a", 0x4F), tuple("d", "a", 0x57),
+                    tuple("e", "a", 0x5F), tuple("h", "a", 0x67),
+                    tuple("l", "a", 0x6F)
                 ])
             {
         case registerLoad[2]:
@@ -287,6 +290,14 @@ struct Cpu
     assert(cpu.registers.eightBit.b == 0xFA, "The value of the register B should be changed");
     assert(cpu.registers.programCounter == 0x0106,
             "The program counter should have advanced one step");
+
+    cpu.memory[0x0106] = 0x47;
+    cpu.registers.eightBit.a = 0x66;
+    const ticksBA = cpu.executeInstruction();
+    assert(ticksBA == 4, "A register to register operation takes 4 ticks");
+    assert(cpu.registers.eightBit.b == 0x66, "The value of the register B should be changed");
+    assert(cpu.registers.programCounter == 0x0107,
+            "The program counter should have advanced one step");
 }
 
 @("Can I load an 8-bit value from a different register into C")
@@ -339,6 +350,14 @@ struct Cpu
     assert(ticksCL == 4, "A register to register operation takes 4 ticks");
     assert(cpu.registers.eightBit.c == 0xFA, "The value of the register C should be changed");
     assert(cpu.registers.programCounter == 0x0106,
+            "The program counter should have advanced one step");
+
+    cpu.memory[0x0106] = 0x4F;
+    cpu.registers.eightBit.a = 0x66;
+    const ticksCA = cpu.executeInstruction();
+    assert(ticksCA == 4, "A register to register operation takes 4 ticks");
+    assert(cpu.registers.eightBit.c == 0x66, "The value of the register C should be changed");
+    assert(cpu.registers.programCounter == 0x0107,
             "The program counter should have advanced one step");
 }
 
@@ -393,6 +412,14 @@ struct Cpu
     assert(cpu.registers.eightBit.d == 0xFA, "The value of the register D should be changed");
     assert(cpu.registers.programCounter == 0x0106,
             "The program counter should have advanced one step");
+
+    cpu.memory[0x0106] = 0x57;
+    cpu.registers.eightBit.a = 0x66;
+    const ticksDA = cpu.executeInstruction();
+    assert(ticksDA == 4, "A register to register operation takes 4 ticks");
+    assert(cpu.registers.eightBit.d == 0x66, "The value of the register D should be changed");
+    assert(cpu.registers.programCounter == 0x0107,
+            "The program counter should have advanced one step");
 }
 
 @("Can I load an 8-bit value from a different register into E")
@@ -445,6 +472,14 @@ struct Cpu
     assert(ticksEL == 4, "A register to register operation takes 4 ticks");
     assert(cpu.registers.eightBit.e == 0xFA, "The value of the register E should be changed");
     assert(cpu.registers.programCounter == 0x0106,
+            "The program counter should have advanced one step");
+
+    cpu.memory[0x0106] = 0x5F;
+    cpu.registers.eightBit.a = 0x66;
+    const ticksEA = cpu.executeInstruction();
+    assert(ticksEA == 4, "A register to register operation takes 4 ticks");
+    assert(cpu.registers.eightBit.e == 0x66, "The value of the register E should be changed");
+    assert(cpu.registers.programCounter == 0x0107,
             "The program counter should have advanced one step");
 }
 
@@ -499,6 +534,14 @@ struct Cpu
     assert(cpu.registers.eightBit.h == 0xFA, "The value of the register H should be changed");
     assert(cpu.registers.programCounter == 0x0106,
             "The program counter should have advanced one step");
+
+    cpu.memory[0x0106] = 0x67;
+    cpu.registers.eightBit.a = 0x66;
+    const ticksHA = cpu.executeInstruction();
+    assert(ticksHA == 4, "A register to register operation takes 4 ticks");
+    assert(cpu.registers.eightBit.h == 0x66, "The value of the register H should be changed");
+    assert(cpu.registers.programCounter == 0x0107,
+            "The program counter should have advanced one step");
 }
 
 @("Can I load an 8-bit value from a different register into L")
@@ -551,6 +594,14 @@ struct Cpu
     assert(ticksLL == 4, "A register to register operation takes 4 ticks");
     assert(cpu.registers.eightBit.l == 0xFA, "The value of the register L should be unchanged");
     assert(cpu.registers.programCounter == 0x0106,
+            "The program counter should have advanced one step");
+
+    cpu.memory[0x0106] = 0x6F;
+    cpu.registers.eightBit.a = 0x66;
+    const ticksLA = cpu.executeInstruction();
+    assert(ticksLA == 4, "A register to register operation takes 4 ticks");
+    assert(cpu.registers.eightBit.l == 0x66, "The value of the register L should be changed");
+    assert(cpu.registers.programCounter == 0x0107,
             "The program counter should have advanced one step");
 }
 
