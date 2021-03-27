@@ -1,7 +1,7 @@
 module gameboyo.revisions;
 
-enum Color { GameBoyColor, NotGameBoyColor };
-enum Super { GameBoy, SuperGameBoy };
+enum Color { GameBoyColor, NotGameBoyColor }
+enum Super { GameBoy, SuperGameBoy }
 
 enum CartridgeType : ubyte {
     RomOnly               = 0x00,
