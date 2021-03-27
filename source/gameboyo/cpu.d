@@ -200,7 +200,9 @@ struct Cpu
             }
 
             // Load values from pointers.
-            static foreach (pointerLoad; [tuple("a", 0x7E)])
+            static foreach (pointerLoad; [
+                    tuple("a", 0x7E), tuple("b", 0x46)
+                ])
             {
         case pointerLoad[1]:
                 __traits(getMember, registers.eightBit, pointerLoad[0]) = memory[registers.sixteenBit.hl];
@@ -392,5 +394,14 @@ struct Cpu
     assert(ticksAHL == 8, "A pointer to register operation takes 8 ticks");
     assert(cpu.registers.eightBit.a == 0xDD, "The value of the register A should be unchanged");
     assert(cpu.registers.programCounter == 0x0101,
+            "The program counter should have advanced one step");
+
+    cpu.memory[0x0101] = 0x46;
+    cpu.memory[0xACDC] = 0xCC;
+    cpu.registers.sixteenBit.hl = 0xACDC;
+    const ticksBHL = cpu.executeInstruction();
+    assert(ticksBHL == 8, "A pointer to register operation takes 8 ticks");
+    assert(cpu.registers.eightBit.b == 0xCC, "The value of the register B should be unchanged");
+    assert(cpu.registers.programCounter == 0x0102,
             "The program counter should have advanced one step");
 }
