@@ -72,14 +72,16 @@ struct Cpu
 
             // Load values from pointers (HL).
             static foreach (pointerLoad; [
-                    tuple("a", "hl", 0x7E), tuple("b", "hl", 0x46), tuple("c", "hl", 0x4E),
-                    tuple("d", "hl", 0x56), tuple("e", "hl", 0x5E), tuple("h", "hl", 0x66),
-                    tuple("l", "hl", 0x6E), tuple("a", "bc", 0x0A), tuple("a", "de", 0x1A)
+                    tuple("a", "hl", 0x7E), tuple("b", "hl", 0x46),
+                    tuple("c", "hl", 0x4E), tuple("d", "hl", 0x56),
+                    tuple("e", "hl", 0x5E), tuple("h", "hl", 0x66),
+                    tuple("l", "hl", 0x6E), tuple("a", "bc", 0x0A),
+                    tuple("a", "de", 0x1A)
                 ])
             {
         case pointerLoad[2]:
-                __traits(getMember, registers.eightBit, pointerLoad[0]) = 
-                    memory[__traits(getMember, registers.sixteenBit, pointerLoad[1])];
+                __traits(getMember, registers.eightBit, pointerLoad[0]) = memory[__traits(getMember,
+                            registers.sixteenBit, pointerLoad[1])];
                 registers.programCounter++;
                 return 8;
             }
@@ -90,26 +92,30 @@ struct Cpu
                 immutable pointer = memory.shortAt(registers.programCounter + 1);
                 registers.eightBit.a = memory[pointer];
             }
-                registers.programCounter += 3;
-                return 16;
+            registers.programCounter += 3;
+            return 16;
 
             // Write register values into the memory pointed to by (HL).
-            static foreach(pointerWrite; [
-                    tuple("b", 0x70), tuple("c", 0x71), tuple("d", 0x72),
-                    tuple("e", 0x73), tuple("h", 0x74), tuple("l", 0x75)
+            static foreach (pointerWrite; [
+                    tuple("hl", "b", 0x70), tuple("hl", "c", 0x71),
+                    tuple("hl", "d", 0x72), tuple("hl", "e", 0x73),
+                    tuple("hl", "h", 0x74), tuple("hl", "l", 0x75),
+                    tuple("bc", "a", 0x02), tuple("de", "a", 0x12),
+                    tuple("hl", "a", 0x77)
                 ])
             {
-        case pointerWrite[1]:
-                memory[registers.sixteenBit.hl] = __traits(getMember, registers.eightBit, pointerWrite[0]);
+        case pointerWrite[2]:
+                memory[__traits(getMember, registers.sixteenBit, pointerWrite[0])] = __traits(getMember,
+                        registers.eightBit, pointerWrite[1]);
                 registers.programCounter++;
                 return 8;
             }
 
             // Write an immediade value n into the memory pointed to by (HL).
         case 0x36:
-                memory[registers.sixteenBit.hl] = memory[registers.programCounter + 1];
-                registers.programCounter += 2;
-                return 12;
+            memory[registers.sixteenBit.hl] = memory[registers.programCounter + 1];
+            registers.programCounter += 2;
+            return 12;
 
         default:
             assert(false, "Unknown opcode");
@@ -766,6 +772,39 @@ struct Cpu
     assert(cpu.memory[0xABBA] == 0xBA, "The value of the pointed to memory should be changed");
     assert(cpu.registers.programCounter == 0x0106,
             "The program counter should have advanced one step");
+}
+
+@("Can I put register A into a memory location")
+@safe unittest
+{
+    Cpu* cpu = new Cpu();
+    cpu.memory[0x0100] = 0x02;
+    cpu.registers.eightBit.a = 0xDD;
+    cpu.registers.sixteenBit.bc = 0xABCD;
+    const ticksBCA = cpu.executeInstruction();
+    assert(ticksBCA == 8, "A register to pointer operation takes 8 ticks");
+    assert(cpu.memory[0xABCD] == 0xDD, "The value of the pointed to memory should be changed");
+    assert(cpu.registers.programCounter == 0x0101,
+            "The program counter should have advanced one step");
+
+    cpu.memory[0x0101] = 0x12;
+    cpu.registers.eightBit.a = 0xBA;
+    cpu.registers.sixteenBit.de = 0xDEAF;
+    const ticksDEA = cpu.executeInstruction();
+    assert(ticksDEA == 8, "A register to pointer operation takes 8 ticks");
+    assert(cpu.memory[0xDEAF] == 0xBA, "The value of the pointed to memory should be changed");
+    assert(cpu.registers.programCounter == 0x0102,
+            "The program counter should have advanced one step");
+
+    cpu.memory[0x0102] = 0x77;
+    cpu.registers.eightBit.a = 0xAF;
+    cpu.registers.sixteenBit.hl = 0xF00D;
+    const ticksHLA = cpu.executeInstruction();
+    assert(ticksHLA == 8, "A register to pointer operation takes 8 ticks");
+    assert(cpu.memory[0xF00D] == 0xAF, "The value of the pointed to memory should be changed");
+    assert(cpu.registers.programCounter == 0x0103,
+            "The program counter should have advanced one step");
+
 }
 
 @("Can I put an immediate value into a memory location")
