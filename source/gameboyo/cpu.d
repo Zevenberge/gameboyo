@@ -178,6 +178,28 @@ struct Cpu
             registers.programCounter += 2;
             return 12;
 
+            // Load a 16-bit immediate value to a sixteen bit register
+            static foreach(immediate16BitLoad; [
+                tuple("bc", 0x01), tuple("de", 0x11),
+                tuple("hl", 0x21), tuple("sp", 0x31)
+            ])
+        case immediate16BitLoad[1]:
+            {
+                immutable value = memory.shortAt(registers.programCounter + 1);
+            static if(immediate16BitLoad[0] == "sp")
+                registers.stackPointer = value;
+            else
+                __traits(getMember, registers.sixteenBit, immediate16BitLoad[0]) = value;
+            }
+            registers.programCounter += 3;
+            return 12;
+
+            // Write HL into the stack pointer
+        case 0xF9:
+            registers.stackPointer = registers.sixteenBit.hl;
+            registers.programCounter++;
+            return 8;
+
         default:
             assert(false, "Unknown opcode");
         }
@@ -999,6 +1021,60 @@ struct Cpu
     assert(ticks == 8, "The operation takes 8 cycles");
     assert(cpu.memory[0xFFBE] == 0xAB, "The value of the pointed to location should be changed");
     assert(cpu.registers.sixteenBit.hl == 0xFFBF, "The HL pointer should have been incremented");
+    assert(cpu.registers.programCounter == 0x0101,
+            "The program counter should have advanced one step");
+}
+
+@("Can I load 16-bit immediate values")
+@safe unittest
+{
+    Cpu* cpu = new Cpu();
+    cpu.memory[0x0100] = 0x01;
+    cpu.memory[0x0101] = 0xCD;
+    cpu.memory[0x0102] = 0xAB;
+    const ticksBCnn = cpu.executeInstruction();
+    assert(ticksBCnn == 12, "The operation takes 12 cycles");
+    assert(cpu.registers.sixteenBit.bc == 0xABCD, "The value of the register should be changed");
+    assert(cpu.registers.programCounter == 0x0103,
+            "The program counter should have advanced three steps");
+
+    cpu.memory[0x0103] = 0x11;
+    cpu.memory[0x0104] = 0x34;
+    cpu.memory[0x0105] = 0x12;
+    const ticksDEnn = cpu.executeInstruction();
+    assert(ticksDEnn == 12, "The operation takes 12 cycles");
+    assert(cpu.registers.sixteenBit.de == 0x1234, "The value of the register should be changed");
+    assert(cpu.registers.programCounter == 0x0106,
+            "The program counter should have advanced three steps");
+
+    cpu.memory[0x0106] = 0x21;
+    cpu.memory[0x0107] = 0x99;
+    cpu.memory[0x0108] = 0x66;
+    const ticksHLnn = cpu.executeInstruction();
+    assert(ticksHLnn == 12, "The operation takes 12 cycles");
+    assert(cpu.registers.sixteenBit.hl == 0x6699, "The value of the register should be changed");
+    assert(cpu.registers.programCounter == 0x0109,
+            "The program counter should have advanced three steps");
+
+    cpu.memory[0x0109] = 0x31;
+    cpu.memory[0x010A] = 0x88;
+    cpu.memory[0x010B] = 0x77;
+    const ticksSPnn = cpu.executeInstruction();
+    assert(ticksSPnn == 12, "The operation takes 12 cycles");
+    assert(cpu.registers.stackPointer == 0x7788, "The value of the stack pointer should be changed");
+    assert(cpu.registers.programCounter == 0x010C,
+            "The program counter should have advanced three steps");
+}
+
+@("Can I put HL into the stack pointer")
+@safe unittest
+{
+    Cpu* cpu = new Cpu();
+    cpu.memory[0x0100] = 0xF9;
+    cpu.registers.sixteenBit.hl = 0xABCD;
+    const ticksBCnn = cpu.executeInstruction();
+    assert(ticksBCnn == 8, "The operation takes 8 cycles");
+    assert(cpu.registers.stackPointer == 0xABCD, "The value of the stack pointer should be changed");
     assert(cpu.registers.programCounter == 0x0101,
             "The program counter should have advanced one step");
 }
