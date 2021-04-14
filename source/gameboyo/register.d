@@ -111,6 +111,25 @@ struct Registers
     /// initialized to 0x0100 and the instruction found
     /// at this location in ROM is executed.
     ushort programCounter = 0x0100;
+
+    /// Adds two numbers and sets the corresponding flags based
+    /// on the result of the operation. Returns the resulting byte.
+    ubyte add(ubyte first, ubyte second) pure @nogc nothrow @safe
+    {
+        const result = cast(ubyte)(first + second);
+
+        this.eightBit.f.subtract = false;
+        this.eightBit.f.zero = result == 0;
+
+        // A whole carry is performed if the 7th byte of both the first and the
+        // second are equal to 1.
+        this.eightBit.f.carry = (first & second & 0b1000_0000) != 0;
+
+        // A half carry was performed if the last four bytes of the result are less than
+        // either one of the input's.
+        this.eightBit.f.halfCarry = lastFourBytes(first) > lastFourBytes(result);
+        return result;
+    }
 }
 
 @("Are the registers paired correctly")
@@ -147,4 +166,71 @@ struct Registers
 {
     const registers = Registers();
     assert(registers.stackPointer == 0xFFFE, "The stack pointer should be initialised to 0xFFFE.");
+}
+
+@("Does the add function add two numbers")
+@safe unittest
+{
+    auto registers = Registers();
+    assert(registers.add(12, 34) == 46, "Numbers should have been added");
+}
+
+@("Does the add function add two numbers that overflow the ubyte")
+@safe unittest
+{
+    auto registers = Registers();
+    assert(registers.add(212, 134) == 90, "The overflow should be forgotten");
+}
+
+@("Is the substract flag reset after an add")
+@safe unittest
+{
+    auto registers = Registers();
+    registers.eightBit.f.subtract = true;
+    registers.add(12, 34);
+    assert(registers.eightBit.f.subtract == false, "The substractN flag should be cleared.");
+}
+
+@("Is the half-carry flag set properly")
+@safe unittest
+{
+    auto registers = Registers();
+    registers.add(0b0000_1000, 0b0000_1000);
+    assert(registers.eightBit.f.halfCarry == true, 
+        "A carry was performed to bit 4, so the half-carry flag should be set.");
+
+    registers.add(0b0000_1000, 0b0000_0111);
+    assert(registers.eightBit.f.halfCarry == false, 
+        "A carry was not performed to bit 4, so the half-carry flag should be cleared.");
+}
+
+@("Is the carry flag set properly")
+@safe unittest
+{
+    auto registers = Registers();
+    registers.add(0b1000_0000, 0b1000_0000);
+    assert(registers.eightBit.f.carry == true, 
+        "A carry was performed, so the carry flag should be set.");
+
+    registers.add(0b1000_0000, 0b0111_0000);
+    assert(registers.eightBit.f.carry == false, 
+        "No carry was performed, so the carry flag should be cleared.");
+}
+
+@("Is the zero flag set properly")
+@safe unittest
+{
+    auto registers = Registers();
+    registers.add(0b1000_0000, 0b1000_0000);
+    assert(registers.eightBit.f.zero == true, 
+        "The resulting byte is zero, so the zero flag should be set.");
+
+    registers.add(0b1000_0000, 0b0111_0000);
+    assert(registers.eightBit.f.zero == false, 
+        "The result is not zero, so the zero flag should be cleared.");
+}
+
+private ubyte lastFourBytes(const ubyte b) pure @nogc nothrow @safe
+{
+    return b & 0b_1111;
 }
