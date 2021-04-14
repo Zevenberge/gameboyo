@@ -194,6 +194,15 @@ struct Cpu
             registers.programCounter += 3;
             return 12;
 
+            // Write stack pointer + n into HL
+        case 0xF8:
+            {
+                const value = registers.stackPointer + memory[registers.programCounter + 1];
+                registers.sixteenBit.hl = cast(ushort)value;
+            }
+            registers.programCounter += 2;
+            return 12;
+
             // Write HL into the stack pointer
         case 0xF9:
             registers.stackPointer = registers.sixteenBit.hl;
@@ -1072,9 +1081,23 @@ struct Cpu
     Cpu* cpu = new Cpu();
     cpu.memory[0x0100] = 0xF9;
     cpu.registers.sixteenBit.hl = 0xABCD;
-    const ticksBCnn = cpu.executeInstruction();
-    assert(ticksBCnn == 8, "The operation takes 8 cycles");
+    const ticks = cpu.executeInstruction();
+    assert(ticks == 8, "The operation takes 8 cycles");
     assert(cpu.registers.stackPointer == 0xABCD, "The value of the stack pointer should be changed");
     assert(cpu.registers.programCounter == 0x0101,
             "The program counter should have advanced one step");
+}
+
+@("Can I put a stack pointer with offset into HL")
+@safe unittest
+{
+    Cpu* cpu = new Cpu();
+    cpu.memory[0x0100] = 0xF8;
+    cpu.memory[0x0101] = 0x22;
+    cpu.registers.stackPointer = 0xABCD;
+    const ticks = cpu.executeInstruction();
+    assert(ticks == 12, "The operation takes 12 cycles");
+    assert(cpu.registers.sixteenBit.hl == 0xABEF, "The value of the register should be changed");
+    assert(cpu.registers.programCounter == 0x0102,
+            "The program counter should have advanced two steps");
 }
